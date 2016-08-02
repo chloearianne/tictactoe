@@ -116,10 +116,6 @@ func TestDisplay(t *testing.T) {
 	// TODO
 }
 
-func TestHelp(t *testing.T) {
-	// TODO
-}
-
 func TestCancel(t *testing.T) {
 	var successResponse = `{"response_type":"in_channel","text":"omelette has cancelled the current game. What a shame.","attachments":null}`
 	tests := []Test{

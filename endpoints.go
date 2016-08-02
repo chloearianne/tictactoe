@@ -100,7 +100,7 @@ func GameHandler(w http.ResponseWriter, r *http.Request) {
 	case "cancel":
 		response, err = handleCancel(inputList, requestData)
 	case "help":
-		response, err = handleHelp(inputList, requestData)
+		response, err = handleHelp()
 	default:
 		fmt.Fprint(w, UsageError.Error())
 		return
@@ -171,9 +171,12 @@ func handleDisplay(inputList []string, req RequestData) (*ResponseData, error) {
 	return nil, nil
 }
 
-func handleHelp(inputList []string, req RequestData) (*ResponseData, error) {
-	// TODO
-	return nil, nil
+func handleHelp() (*ResponseData, error) {
+	resp := ResponseData{
+		ResponseType: "ephemeral",
+		Text:         HelpText,
+	}
+	return &resp, nil
 }
 
 func handleCancel(inputList []string, req RequestData) (*ResponseData, error) {

@@ -1,15 +1,21 @@
 package main
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
-// ----- ERRORS ----- //
-
-var UsageError = errors.New(`Use /ttt to play a game of tic tac toe.
+var HelpText = `Use /ttt to play a game of tic tac toe.
 To start a game: /ttt start [@user]
 To make a move: /ttt move [position]
 To display current board: /ttt display
-To cancel a current game: /ttt cancel
-For help: /ttt help`)
+To cancel a current game: /ttt cancel`
+
+// ----- ERRORS ----- //
+
+var GenericError = errors.New(`Whoops! An error popped up out of nowhere. Try again, or try /ttt help.`)
+
+var UsageError = errors.New(fmt.Sprintf("%s\nFor help: /ttt help.", HelpText))
 
 var GameAlreadyExistsError = errors.New(`A game is already being played in this channel. Try another channel, or /ttt help for help.`)
 
@@ -19,8 +25,6 @@ var InvalidMoveError = errors.New(`That's not a valid move! Specify a position o
 	For example, to mark the bottom middle spot of the board: /ttt move C2`)
 
 var PositionTakenError = errors.New(`That position is already taken!`)
-
-var GenericError = errors.New(`An error has occurred. Try again later, or try /ttt help.`)
 
 var UserDoesntExistError = errors.New(`That user doesn't exist! Try again, or try /ttt help.`)
 
