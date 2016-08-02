@@ -1,17 +1,13 @@
 package main
 
 import (
-	"errors"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
-)
 
-var UsageError = errors.New(`Use /ttt to play a game of tic tac toe.
-To start a game: /ttt start [@user]
-To make a move: /ttt move [position]
-To display current board: /ttt display
-For help: /ttt help`)
+	"google.golang.org/appengine"
+)
 
 // RequestData represents an incoming request from a Slack channel when a user tries to invoke
 // the /ttt command. Its fields are populated straight from the data received after
@@ -27,59 +23,160 @@ type RequestData struct {
 	channelName string //FIXME: not used?
 }
 
+// ResponseData represents the data that should be sent back as a POST to the response URL
+// provided in the request. It
+type ResponseData struct {
+	ResponseType string       `json:"response_type"` // values: in_channel, ephemeral
+	Text         string       `json:"text"`
+	Attachments  []Attachment `json:"attachments"` // FIXME: not used?
+}
+
+type Attachment struct {
+	text string
+}
+
+func (r *ResponseData) getJSON() ([]byte, error) {
+	jsonResponse, err := json.Marshal(r)
+	if err != nil {
+		return nil, err
+	}
+	return jsonResponse, nil
+}
+
 // GameHandler is the main handler that handles all incoming requests when a /ttt command is
 // invoked. It parses the request into a RequestData object and sends the reqest off to be
 // handled depending on what command it detects (start, move, display, or help).
 func GameHandler(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseForm()
-	if err != nil {
-		fmt.Fprint(w, fmt.Sprintf("Error has occurred: %v", err))
-	}
-	req := RequestData{
-		text:        r.Form["text"],
-		channel:     r.Form["channel_id"],
-		userID:      r.Form["user_id"],
-		responseURL: r.Form["response_url"],
-		username:    r.Form["user_name"],
-		token:       r.Form["token"],
-		teamID:      r.Form["team_id"],
-		channelName: r.Form["channel_name"],
+	ctx := appengine.NewContext(r)
+	// Build a list of users if it's not already saved in memory.
+	// Unfortunately need to do this inside the handler because Google appengine requires
+	// a current request context to make any http requests
+	// TOOD: look into better ways of doing this
+	if len(Users) <= 0 {
+		err := getUsers(ctx)
+		if err != nil {
+			fmt.Fprintf(w, GenericError.Error())
+			return
+		}
 	}
 
-	inputList := strings.Split(req.text, " ")
-	if len(inputList) <= 0 {
+	err := r.ParseForm()
+	if err != nil {
+		fmt.Fprint(w, GenericError.Error())
+		return
+	}
+	//TODO: validate token
+	//TODO: parse request data using extenral package
+	requestData := RequestData{
+		text:        r.Form["text"][0],
+		channel:     r.Form["channel_id"][0],
+		userID:      r.Form["user_id"][0],
+		responseURL: r.Form["response_url"][0],
+		username:    r.Form["user_name"][0],
+		token:       r.Form["token"][0],
+		teamID:      r.Form["team_id"][0],
+		channelName: r.Form["channel_name"][0],
+	}
+
+	if !validToken(requestData.token) {
+		fmt.Fprint(w, InvalidTokenError.Error())
+		return
+	}
+
+	inputList := strings.Split(requestData.text, " ")
+	if requestData.text == "" || len(inputList) <= 0 {
 		fmt.Fprint(w, UsageError.Error())
 		return
 	}
+	var response *ResponseData
 	command := inputList[0]
 	switch command {
 	case "start":
-		startGame(w, inputList, req)
+		response, err = startGame(inputList, requestData)
 	case "move":
-		makeMove(w, inputList, req)
+		response, err = makeMove(inputList, requestData)
 	case "display":
-		handleDisplay(w, req)
+		response, err = handleDisplay(requestData)
+	case "cancel":
+		response, err = handleCancel(requestData)
 	case "help":
-		handleHelp(w, req)
+		response, err = handleHelp(requestData)
 	default:
 		fmt.Fprint(w, UsageError.Error())
+		return
+	}
+
+	// If handling the command produces an error, just return that
+	if err != nil {
+		fmt.Fprintf(w, err.Error())
+		return
+	}
+
+	// Otherwise, generate JSON from the response
+	json, err := response.getJSON()
+	if err != nil {
+		fmt.Fprintf(w, GenericError.Error())
+		return
+	}
+
+	// Send the generated JSON back in a response
+	err = sendResponseData(requestData.responseURL, json, ctx)
+	if err != nil {
+		fmt.Fprintf(w, err.Error())
 		return
 	}
 	return
 }
 
-func startGame(w http.ResponseWriter, inputList []string, req RequestData) {
-	// TODO
+func startGame(inputList []string, req RequestData) (*ResponseData, error) {
+	if len(inputList) != 2 {
+		return nil, UsageError
+	}
+
+	// Extract name of user to be challenged, and look up their unique user ID
+	challengedUser := inputList[1]
+	challengedUser = strings.TrimPrefix(challengedUser, "@")
+	challengedUserID, ok := Users[challengedUser]
+	if !ok {
+		return nil, UserDoesntExistError
+	}
+
+	// Check if a game is already being played in this channel
+	if _, exists := CurrentGames[req.channel]; exists {
+		return nil, GameAlreadyExistsError
+	}
+
+	game := GameBoard{
+		CurrentConfig: map[string]string{},
+		CurrentPlayer: challengedUserID,
+		Players:       []string{req.userID, challengedUserID},
+	}
+	CurrentGames[req.channel] = game
+
+	response := ResponseData{
+		ResponseType: "in_channel",
+		Text:         fmt.Sprintf("<@%s|%s>, %s has challenged you to a duel! To accept this noble challenge, make the first move.", challengedUserID, challengedUser, req.username),
+	}
+
+	return &response, nil
 }
 
-func makeMove(w http.ResponseWriter, inputList []string, req RequestData) {
-	// TODO
+func makeMove(inputList []string, req RequestData) (*ResponseData, error) {
+	//TODO
+	return nil, nil
 }
 
-func handleDisplay(w http.ResponseWriter, inputList []string, req RequestData) {
+func handleDisplay(req RequestData) (*ResponseData, error) {
 	// TODO
+	return nil, nil
 }
 
-func handleHelp(w http.ResponseWriter, inputList []string, req RequestData) {
+func handleHelp(req RequestData) (*ResponseData, error) {
 	// TODO
+	return nil, nil
+}
+
+func handleCancel(req RequestData) (*ResponseData, error) {
+	// TODO
+	return nil, nil
 }
