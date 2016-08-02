@@ -9,5 +9,4 @@ func init() {
 	CurrentGames = map[string]GameBoard{}
 	Users = map[string]string{}
 	http.HandleFunc("/play", GameHandler)
-
 }

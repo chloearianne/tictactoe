@@ -52,7 +52,7 @@ func GameHandler(w http.ResponseWriter, r *http.Request) {
 	// Unfortunately need to do this inside the handler because Google appengine requires
 	// a current request context to make any http requests
 	// TOOD: look into better ways of doing this
-	if len(Users) <= 0 {
+	if len(Users) == 0 {
 		err := getUsers(ctx)
 		if err != nil {
 			fmt.Fprintf(w, err.Error()) // FIXME
