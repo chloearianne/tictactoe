@@ -11,7 +11,8 @@ import (
 
 type Test struct {
 	name             string
-	existingBoards   map[string]GameBoard
+	existingBoards   map[string]Game
+	existingUsers    map[string]string
 	input            string
 	expectedResponse string
 }
@@ -41,7 +42,7 @@ func RunTest(tests []Test, testFunc func([]string, RequestData) (*ResponseData, 
 		if test.existingBoards != nil {
 			CurrentGames = test.existingBoards
 		} else {
-			CurrentGames = map[string]GameBoard{}
+			CurrentGames = map[string]Game{}
 		}
 
 		req, err := http.NewRequest("POST", s.URL, nil)
@@ -68,7 +69,7 @@ func RunTest(tests []Test, testFunc func([]string, RequestData) (*ResponseData, 
 
 func TestStart(t *testing.T) {
 
-	var successResponse = `{"response_type":"in_channel","text":"\u003c@myID|clim\u003e, omelette has challenged you to a duel! To accept this noble challenge, make the first move.","attachments":null}`
+	var successResponse = `{"response_type":"in_channel","text":"\u003c@myID|clim\u003e, omelette has challenged you to a duel! To accept this noble challenge, make the first move."}`
 
 	tests := []Test{
 		Test{
@@ -95,40 +96,40 @@ func TestStart(t *testing.T) {
 		Test{
 			name:             "game already exists",
 			input:            "start @clim",
-			existingBoards:   map[string]GameBoard{"fakeChan": GameBoard{}},
+			existingBoards:   map[string]Game{"fakeChan": Game{}},
 			expectedResponse: GameAlreadyExistsError.Error(),
 		},
 		Test{
 			name:             "game exists in different channel",
 			input:            "start @clim",
-			existingBoards:   map[string]GameBoard{"differentChannel": GameBoard{}},
+			existingBoards:   map[string]Game{"differentChannel": Game{}},
 			expectedResponse: successResponse,
 		},
 	}
-	RunTest(tests, startGame, t)
+	RunTest(tests, handleGame, t)
 }
 
 func TestMove(t *testing.T) {
 	// TODO
 }
 
-func TestDisplay(t *testing.T) {
+/*func TestDisplay(t *testing.T) {
 	// TODO
-}
+}*/
 
 func TestCancel(t *testing.T) {
-	var successResponse = `{"response_type":"in_channel","text":"omelette has cancelled the current game. What a shame.","attachments":null}`
+	var successResponse = `{"response_type":"in_channel","text":"omelette has cancelled the current game. What a shame."}`
 	tests := []Test{
 		Test{
 			name:             "cancel properly",
 			input:            "cancel",
-			existingBoards:   map[string]GameBoard{"fakeChan": GameBoard{}},
+			existingBoards:   map[string]Game{"fakeChan": Game{}},
 			expectedResponse: successResponse,
 		},
 		Test{
 			name:             "no game exists",
 			input:            "cancel",
-			existingBoards:   map[string]GameBoard{"bacon": GameBoard{}},
+			existingBoards:   map[string]Game{"bacon": Game{}},
 			expectedResponse: NoGameExistsError.Error(),
 		},
 	}
