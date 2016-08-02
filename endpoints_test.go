@@ -11,55 +11,18 @@ import (
 
 type Test struct {
 	name             string
-	currentBoards    map[string]GameBoard
+	existingBoards   map[string]GameBoard
 	input            string
 	expectedResponse string
 }
 
-var successResponse = `{"response_type":"in_channel","text":"\u003c@myID|clim\u003e,  has challenged you to a duel! To accept this noble challenge, make the first move.","attachments":null}`
-
-var startTests = []Test{
-	Test{
-		name:             "basic",
-		input:            "start @clim",
-		expectedResponse: successResponse,
-	},
-	Test{
-		name:             "no user",
-		input:            "start",
-		expectedResponse: UsageError.Error(),
-	},
-	Test{
-		name:             "too many args",
-		input:            "start @clim @pancakes",
-		expectedResponse: UsageError.Error(),
-	},
-
-	Test{
-		name:             "user doesn't exist",
-		input:            "start @bacon",
-		expectedResponse: UserDoesntExistError.Error(),
-	},
-	Test{
-		name:             "game already exists",
-		input:            "start @clim",
-		currentBoards:    map[string]GameBoard{"fakeChan": GameBoard{}},
-		expectedResponse: GameAlreadyExistsError.Error(),
-	},
-	Test{
-		name:             "game exists in different channel",
-		input:            "start @clim",
-		currentBoards:    map[string]GameBoard{"differentChannel": GameBoard{}},
-		expectedResponse: successResponse,
-	},
-}
-
-func TestStart(t *testing.T) {
+func RunTest(tests []Test, testFunc func([]string, RequestData) (*ResponseData, error), t *testing.T) {
 	Users["clim"] = "myID"
+	Users["omelette"] = "cheese"
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		input := r.Header.Get("Input")
 		inputList := strings.Split(input, " ")
-		resp, err := startGame(inputList, RequestData{channel: "fakeChan", userID: "fakeID"})
+		resp, err := testFunc(inputList, RequestData{channel: "fakeChan", username: "omelette"})
 		if err != nil {
 			fmt.Fprintf(w, err.Error())
 			return
@@ -74,9 +37,9 @@ func TestStart(t *testing.T) {
 	}))
 	defer s.Close()
 
-	for _, test := range startTests {
-		if test.currentBoards != nil {
-			CurrentGames = test.currentBoards
+	for _, test := range tests {
+		if test.existingBoards != nil {
+			CurrentGames = test.existingBoards
 		} else {
 			CurrentGames = map[string]GameBoard{}
 		}
@@ -103,6 +66,48 @@ func TestStart(t *testing.T) {
 	}
 }
 
+func TestStart(t *testing.T) {
+
+	var successResponse = `{"response_type":"in_channel","text":"\u003c@myID|clim\u003e, omelette has challenged you to a duel! To accept this noble challenge, make the first move.","attachments":null}`
+
+	tests := []Test{
+		Test{
+			name:             "basic",
+			input:            "start @clim",
+			expectedResponse: successResponse,
+		},
+		Test{
+			name:             "no user",
+			input:            "start",
+			expectedResponse: UsageError.Error(),
+		},
+		Test{
+			name:             "too many args",
+			input:            "start @clim @pancakes",
+			expectedResponse: UsageError.Error(),
+		},
+
+		Test{
+			name:             "user doesn't exist",
+			input:            "start @bacon",
+			expectedResponse: UserDoesntExistError.Error(),
+		},
+		Test{
+			name:             "game already exists",
+			input:            "start @clim",
+			existingBoards:   map[string]GameBoard{"fakeChan": GameBoard{}},
+			expectedResponse: GameAlreadyExistsError.Error(),
+		},
+		Test{
+			name:             "game exists in different channel",
+			input:            "start @clim",
+			existingBoards:   map[string]GameBoard{"differentChannel": GameBoard{}},
+			expectedResponse: successResponse,
+		},
+	}
+	RunTest(tests, startGame, t)
+}
+
 func TestMove(t *testing.T) {
 	// TODO
 }
@@ -113,4 +118,23 @@ func TestDisplay(t *testing.T) {
 
 func TestHelp(t *testing.T) {
 	// TODO
+}
+
+func TestCancel(t *testing.T) {
+	var successResponse = `{"response_type":"in_channel","text":"omelette has cancelled the current game. What a shame.","attachments":null}`
+	tests := []Test{
+		Test{
+			name:             "cancel properly",
+			input:            "cancel",
+			existingBoards:   map[string]GameBoard{"fakeChan": GameBoard{}},
+			expectedResponse: successResponse,
+		},
+		Test{
+			name:             "no game exists",
+			input:            "cancel",
+			existingBoards:   map[string]GameBoard{"bacon": GameBoard{}},
+			expectedResponse: NoGameExistsError.Error(),
+		},
+	}
+	RunTest(tests, handleCancel, t)
 }

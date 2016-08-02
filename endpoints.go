@@ -35,7 +35,7 @@ type Attachment struct {
 	text string
 }
 
-func (r *ResponseData) getJSON() ([]byte, error) {
+func (r ResponseData) getJSON() ([]byte, error) {
 	jsonResponse, err := json.Marshal(r)
 	if err != nil {
 		return nil, err
@@ -55,7 +55,7 @@ func GameHandler(w http.ResponseWriter, r *http.Request) {
 	if len(Users) <= 0 {
 		err := getUsers(ctx)
 		if err != nil {
-			fmt.Fprintf(w, GenericError.Error())
+			fmt.Fprintf(w, err.Error()) // FIXME
 			return
 		}
 	}
@@ -96,11 +96,11 @@ func GameHandler(w http.ResponseWriter, r *http.Request) {
 	case "move":
 		response, err = makeMove(inputList, requestData)
 	case "display":
-		response, err = handleDisplay(requestData)
+		response, err = handleDisplay(inputList, requestData)
 	case "cancel":
-		response, err = handleCancel(requestData)
+		response, err = handleCancel(inputList, requestData)
 	case "help":
-		response, err = handleHelp(requestData)
+		response, err = handleHelp(inputList, requestData)
 	default:
 		fmt.Fprint(w, UsageError.Error())
 		return
@@ -166,17 +166,25 @@ func makeMove(inputList []string, req RequestData) (*ResponseData, error) {
 	return nil, nil
 }
 
-func handleDisplay(req RequestData) (*ResponseData, error) {
+func handleDisplay(inputList []string, req RequestData) (*ResponseData, error) {
 	// TODO
 	return nil, nil
 }
 
-func handleHelp(req RequestData) (*ResponseData, error) {
+func handleHelp(inputList []string, req RequestData) (*ResponseData, error) {
 	// TODO
 	return nil, nil
 }
 
-func handleCancel(req RequestData) (*ResponseData, error) {
-	// TODO
-	return nil, nil
+func handleCancel(inputList []string, req RequestData) (*ResponseData, error) {
+	if _, ok := CurrentGames[req.channel]; !ok {
+		return nil, NoGameExistsError
+	}
+	delete(CurrentGames, req.channel)
+
+	response := ResponseData{
+		ResponseType: "in_channel",
+		Text:         fmt.Sprintf("%s has cancelled the current game. What a shame.", req.username),
+	}
+	return &response, nil
 }
