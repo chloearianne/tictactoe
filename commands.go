@@ -9,7 +9,10 @@ func handleStart(inputList []string, req RequestData) (*ResponseData, error) {
 	if len(inputList) != 2 {
 		return nil, UsageError
 	}
-
+	p1 := Player{
+		Name: req.username,
+		ID:   req.userID,
+	}
 	// Extract name of user to be challenged, and look up their unique user ID
 	challengedUser := inputList[1]
 	challengedUser = strings.TrimPrefix(challengedUser, "@")
@@ -17,17 +20,21 @@ func handleStart(inputList []string, req RequestData) (*ResponseData, error) {
 	if !ok {
 		return nil, UserDoesntExistError
 	}
+	p2 := Player{
+		Name: challengedUser,
+		ID:   challengedUserID,
+	}
 
 	// Check if a game is already being played in this channel
 	if _, exists := CurrentGames[req.channel]; exists {
 		return nil, GameAlreadyExistsError
 	}
-	game := New([]string{req.username, challengedUser}, []string{req.userID, challengedUserID}, challengedUserID)
-	CurrentGames[req.channel] = *game
+
+	CurrentGames[req.channel] = *New(p1, p2)
 
 	response := ResponseData{
 		ResponseType: "in_channel",
-		Text:         fmt.Sprintf("<@%s|%s>, %s has challenged you to a duel! To accept this noble challenge, make the first move.", challengedUserID, challengedUser, req.username),
+		Text:         fmt.Sprintf("<@%s|%s>, %s has challenged you to a game! To accept this noble challenge, make the first move.", challengedUserID, challengedUser, req.username),
 	}
 
 	return &response, nil
@@ -39,21 +46,40 @@ func handleMove(inputList []string, req RequestData) (*ResponseData, error) {
 }
 
 func handleDisplay(inputList []string, req RequestData) (*ResponseData, error) {
-	// TODO
-	return nil, nil
+	if len(inputList) != 1 {
+		return nil, UsageError
+	}
+	game, ok := CurrentGames[req.channel]
+	if !ok {
+		return nil, NoGameExistsError
+	}
+
+	response := ResponseData{
+		ResponseType: "in_channel",
+		Text:         game.Display(),
+	}
+	return &response, nil
 }
 
 func handleHelp() (*ResponseData, error) {
-	resp := ResponseData{
+	response := ResponseData{
 		ResponseType: "ephemeral",
 		Text:         HelpText,
 	}
-	return &resp, nil
+	return &response, nil
 }
 
 func handleCancel(inputList []string, req RequestData) (*ResponseData, error) {
-	if _, ok := CurrentGames[req.channel]; !ok {
+	if len(inputList) != 1 {
+		return nil, UsageError
+	}
+
+	game, ok := CurrentGames[req.channel]
+	if !ok {
 		return nil, NoGameExistsError
+	}
+	if req.userID != game.Player1.ID && req.userID != game.Player2.ID {
+		return nil, NotAuthorizedError
 	}
 	delete(CurrentGames, req.channel)
 

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"google.golang.org/appengine"
 )
 
 var CurrentGames map[string]Game
@@ -94,7 +96,7 @@ func GameHandler(w http.ResponseWriter, r *http.Request) {
 	command := inputList[0]
 	switch command {
 	case "start":
-		response, err = handleGame(inputList, requestData)
+		response, err = handleStart(inputList, requestData)
 	case "move":
 		response, err = handleMove(inputList, requestData)
 	case "display":
