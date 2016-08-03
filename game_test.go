@@ -15,7 +15,7 @@ func TestBoardDisplay(t *testing.T) {
 		B3: O,
 		C3: X,
 	}
-	expected := `batman (O) vs. superman (X)
+	expected := `
 ... | ... | ...
 X | ... | 0
 0 | X | X`

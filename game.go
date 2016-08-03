@@ -32,10 +32,9 @@ func New(p1, p2 Player) *Game {
 	return &game
 }
 
-// Display prints out a visual representation of the game's current board configuration with a title
-// showing who the players are.
+// Display prints out a visual representation of the game's current board configuration.
 func (g *Game) Display() string {
-	display := fmt.Sprintf("%s (O) vs. %s (X)", g.Player1.Name, g.Player2.Name)
+	display := ""
 	for i, pos := range boardPositions {
 		if i%3 == 0 {
 			display = fmt.Sprintf("%s\n%s", display, g.Board[pos])

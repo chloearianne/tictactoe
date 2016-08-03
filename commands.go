@@ -143,7 +143,8 @@ func handleDisplay(inputList []string, req RequestData) (*ResponseData, error) {
 	}
 	response := ResponseData{
 		ResponseType: "in_channel",
-		Text:         fmt.Sprintf("%s\nIt's %s's turn to make a move.", game.Display(), game.CurrentPlayer.Name),
+		Text: fmt.Sprintf("%s (0) vs. %s (X)%s\nIt's %s's turn to make a move.", game.Player1.Name, game.Player2.Name,
+			game.Display(), game.CurrentPlayer.Name),
 	}
 	return &response, nil
 }
