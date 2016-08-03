@@ -9,31 +9,32 @@ import (
 	"google.golang.org/appengine"
 )
 
-var CurrentGames map[string]Game
-var Users map[string]string
+// Global state variables
+var CurrentGames map[string]*Game    // Stores all the games in play currently, in all channels; maps channelID to Game
+var ChannelUsers map[string][]string // Used for caching the users in each channel; maps channel ID to list of userIDs
+var Users map[string]string          // List of users on this team; maps usernames to userIDs
 
 func init() {
-	CurrentGames = map[string]Game{}
+	CurrentGames = map[string]*Game{}
+	ChannelUsers = map[string][]string{}
 	Users = map[string]string{}
 	http.HandleFunc("/play", GameHandler)
 }
 
 // RequestData represents an incoming request from a Slack channel when a user tries to invoke
 // the /ttt command. Its fields are populated straight from the data received after
-// parsing the request form.
+// parsing the request form. Only the fields used are part of the object here; any extraneous
+// or unused fields are left out.
 type RequestData struct {
 	text        string // Represents the raw text input that follows /ttt
 	channel     string // Channel ID
 	userID      string // Current user's ID
-	responseURL string
-	username    string
-	token       string //FIXME: not used?
-	teamID      string //FIXME: not used?
-	channelName string //FIXME: not used?
+	responseURL string // URL to send a response to Slack
+	username    string // Current user's username
 }
 
 // ResponseData represents the data that should be sent back as a POST to the response URL
-// provided in the request. It
+// provided in the request.
 type ResponseData struct {
 	ResponseType string `json:"response_type"` // values: in_channel, ephemeral
 	Text         string `json:"text"`
@@ -51,40 +52,33 @@ func (r ResponseData) getJSON() ([]byte, error) {
 // invoked. It parses the request into a RequestData object and sends the reqest off to be
 // handled depending on what command it detects (start, move, display, or help).
 func GameHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := appengine.NewContext(r)
-	// Build a list of users if it's not already saved in memory.
-	// Unfortunately need to do this inside the handler because Google appengine requires
-	// a current request context to make any http requests
-	// TOOD: look into better ways of doing this
-	if len(Users) == 0 {
-		err := getUsers(ctx)
-		if err != nil {
-			fmt.Fprintf(w, GenericError.Error())
-			return
-		}
-	}
-
 	err := r.ParseForm()
 	if err != nil {
 		fmt.Fprint(w, GenericError.Error())
 		return
 	}
-
 	if !validToken(r.Form["token"][0]) {
 		fmt.Fprint(w, InvalidTokenError.Error())
 		return
 	}
-	//TODO: parse request data using extenral package
-	// Assumes request is always well-formed
+
+	ctx := appengine.NewContext(r)
+	// Build a list of users on this team and in this channel if they're not already saved in memory.
+	// NOTE: Unfortunately need to do this inside the handler because Google appengine requires
+	// a current request context to make any http requests.
+	err = getUserLists(ctx, r.Form["channel"][0])
+	if err != nil {
+		fmt.Fprint(w, GenericError.Error())
+		return
+	}
+	// Parse request data. Assumes request is always well-formed, i.e. there is exactly one value
+	// for each of the form keys
 	requestData := RequestData{
 		text:        r.Form["text"][0],
-		channel:     r.Form["channel_id"][0],
+		channel:     r.Form["channel"][0],
 		userID:      r.Form["user_id"][0],
 		responseURL: r.Form["response_url"][0],
 		username:    r.Form["user_name"][0],
-		token:       r.Form["token"][0],
-		teamID:      r.Form["team_id"][0],
-		channelName: r.Form["channel_name"][0],
 	}
 
 	inputList := strings.Split(requestData.text, " ")
@@ -109,21 +103,16 @@ func GameHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, UsageError.Error())
 		return
 	}
-
-	// If handling the command produces an error, just return that
 	if err != nil {
 		fmt.Fprintf(w, err.Error())
 		return
 	}
-
-	// Otherwise, generate JSON from the response
+	// Generate JSON from the response and send it back
 	json, err := response.getJSON()
 	if err != nil {
 		fmt.Fprintf(w, GenericError.Error())
 		return
 	}
-
-	// Send the generated JSON back in a response
 	err = sendResponseData(requestData.responseURL, json, ctx)
 	if err != nil {
 		fmt.Fprintf(w, err.Error())

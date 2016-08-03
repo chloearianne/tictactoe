@@ -2,15 +2,33 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"golang.org/x/net/context"
 
 	"google.golang.org/appengine/urlfetch"
 )
+
+// getUserLists is used to build lists of users on this team and in this channel if they're
+// not already saved in memory.
+func getUserLists(ctx context.Context, channelID string) error {
+	if len(Users) == 0 {
+		err := getUsers(ctx)
+		if err != nil {
+			return err
+		}
+	}
+	_, ok := ChannelUsers[channelID]
+	if !ok {
+		err := getChannelUsers(channelID, ctx)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+
+}
 
 func validToken(token string) bool {
 	if token != authToken {
@@ -19,6 +37,8 @@ func validToken(token string) bool {
 	return true
 }
 
+// sendResponseData sends JSON responses back to Slack after the /ttt command
+// has been handled.
 func sendResponseData(url string, json []byte, ctx context.Context) error {
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(json))
 	if err != nil {
@@ -33,49 +53,11 @@ func sendResponseData(url string, json []byte, ctx context.Context) error {
 	return nil
 }
 
-type UsersResponse struct {
-	Ok      bool     `json:"ok"`
-	Members []Member `json:"members"`
-	Error   string   `json:"error"`
-}
-
-type Member struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-}
-
-func getUsers(ctx context.Context) error {
-	req, err := http.NewRequest("POST", "https://slack.com/api/users.list", nil)
-	if err != nil {
-		return fmt.Errorf("Couldn't create request to get users: %v", err)
+func moveIsValid(move string) bool {
+	for _, pos := range boardPositions {
+		if strings.ToUpper(move) == pos {
+			return true
+		}
 	}
-	values := req.URL.Query()
-	values.Add("token", testToken)
-	req.URL.RawQuery = values.Encode()
-
-	c := urlfetch.Client(ctx)
-	resp, err := c.Do(req)
-	if err != nil {
-		return fmt.Errorf("Couldn't do request to get users: %v", err)
-
-	}
-	body, err := ioutil.ReadAll(resp.Body)
-	defer resp.Body.Close()
-	if err != nil {
-		return fmt.Errorf("Couldn't read body of response: %v", err)
-
-	}
-	var users UsersResponse
-	err = json.Unmarshal(body, &users)
-	if err != nil {
-		return fmt.Errorf("Couldn't unmarshal response: %v", err)
-
-	}
-	if !users.Ok {
-		return fmt.Errorf("Error getting users: %s", users.Error)
-	}
-	for _, m := range users.Members {
-		Users[m.Name] = m.ID
-	}
-	return nil
+	return false
 }
