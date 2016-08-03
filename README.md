@@ -10,13 +10,7 @@ A Slack custom integration for playing a game of tic tac toe within a channel.
 - `/ttt help` displays information about how to play the game. Anyone can run this command.
 
 ## Gameplay details
-Positions on the board are represented by two characters: the first, a letter indicating the row (A, B, or C), and the second, a number indicating the column (1, 2, or 3). For example "/ttt move C2" would result in this mark:
-
-      1    2    3
-A  ... | ... | ...
-B  ... | ... | ...
-C  ... | X | ...
-
+Positions on the board are represented by two characters: the first, a letter indicating the row (A, B, or C), and the second, a number indicating the column (1, 2, or 3). For example "/ttt move C2" would mark the bottom row, middle spot.
 For rules of tic tac toe, see https://en.wikipedia.org/wiki/Tic-tac-toe.
 
 Only one game is allowed be active per channel.
