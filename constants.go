@@ -19,7 +19,7 @@ var B3 = "B3"
 var C3 = "C3"
 
 var X = "X"
-var O = "0" // the 0 is skinnier than an actual O and makes it look better
+var O = "0" // Using 0 instead of O because the 0 is skinnier and makes the board layout look better
 var empty = "..."
 
 var boardPositions = []string{A1, A2, A3, B1, B2, B3, C1, C2, C3}
@@ -33,14 +33,14 @@ C  ... | ... | ...`
 
 // ------ USEFUL MESSAGES ------ //
 
-var Usage = `Use /ttt to play a game of tic tac toe.
-To start a game: /ttt start [@user]
+var Usage = `To start a game: /ttt start [@user]
 To make a move: /ttt move [position]
 To display current board: /ttt display
 To cancel a current game: /ttt cancel`
 
-var HelpText = fmt.Sprintf(`%s
-Positions on the board are represented by two characters: the first, a letter indicating the row (A, B, or C), and the second, a number indicating the column (1, 2, or 3). For example, the spot marked with an X on this board is C2:
+var HelpText = fmt.Sprintf(`Use /ttt to play a game of tic tac toe.
+%s
+Positions on the board are represented by two characters: the first, a letter indicating the row (A, B, or C), and the second, a number indicating the column (1, 2, or 3). For example "/ttt move C2" would result in this mark:
 
       1    2    3
 A  ... | ... | ...

@@ -33,9 +33,9 @@ type Channel struct {
 	Members []string `json:"members"`
 }
 
-// makeAPICall is the generic method to make a call to the Slack API given a url to send the request to
-// and a list of values to add to the URL. It uses the appengine urlfetch to create a client and do the
-// request, which requires a context.Context from a currently executing http.Request.
+// makeAPICall is the generic method to make a call to the Slack API, given a url to send the request to
+// and a list of arguments/values to add to the URL. It uses Google's appengine urlfetch to create a client and do the
+// request (which requires a context.Context from a currently executing http.Request).
 func makeAPICall(url string, urlVals map[string]string, ctx context.Context) (*http.Response, error) {
 	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {

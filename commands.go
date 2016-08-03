@@ -6,9 +6,9 @@ import (
 )
 
 // handleStart provides the functionality for starting a game. It makes sure the command and
-// other arguments (given in inputList) are formatted correctly, that the provided user exists and
+// other arguments (in inputList) are formatted correctly and that the provided user exists and
 // is in the current channel, and then creates and saves a new Game with the players' info. It posts
-// a public response in the channel saying that a user has been challenged to a game.
+// a public response in the channel saying that the user has been challenged to a game.
 func handleStart(inputList []string, req RequestData) (*ResponseData, error) {
 	// Ensure correct number of arguments, ex. start @bob
 	if len(inputList) != 2 {
@@ -29,43 +29,46 @@ func handleStart(inputList []string, req RequestData) (*ResponseData, error) {
 		return nil, UserDoesntExistError
 	}
 	userList, ok := ChannelUsers[req.channel]
-	if ok {
-		found := false
-		for _, user := range userList {
-			if user == challengedUserID {
-				found = true
-			}
-		}
-		if !found {
-			return nil, UserNotInChannelError
+	if !ok {
+		// Because we already ran getUserLists prior to this, "ok" should always be true and this should never happen
+		return nil, GenericError
+	}
+	found := false
+	for _, user := range userList {
+		if user == challengedUserID {
+			found = true
 		}
 	}
+	if !found {
+		return nil, UserNotInChannelError
+	}
+
 	// Create players and new game
-	p2 := Player{
-		Name: challengedUser,
-		ID:   challengedUserID,
-		Mark: X,
-	}
 	p1 := Player{
 		Name: req.username,
 		ID:   req.userID,
 		Mark: O,
 	}
+	p2 := Player{
+		Name: challengedUser,
+		ID:   challengedUserID,
+		Mark: X,
+	}
 	CurrentGames[req.channel] = New(p1, p2)
 
 	response := ResponseData{
 		ResponseType: "in_channel",
-		Text:         fmt.Sprintf("<@%s|%s>, %s has challenged you to a game! Your move. \n%s", challengedUserID, challengedUser, req.username, emptyBoardDisplay),
+		Text:         fmt.Sprintf("Hey <@%s|%s>, %s has challenged you to a game! Your move. \n%s", challengedUserID, challengedUser, req.username, emptyBoardDisplay),
 	}
-
 	return &response, nil
 }
 
 // handleMove provides the functionality for users to make moves in the game. It checks for proper
-// formatting of the command and its arguments passed in through inputList, verifies that a game is
+// formatting of the command and its arguments, verifies that this channel has a game that is
 // in progress and that it's the current user's turn, verifies that the move is valid, and then makes
-// the move. It then checks if the game has been won or tied, and if not, flips who the current player
-// is and sends a response to display the updated board.
+// the move. It then checks if the game has been won or tied. If so, it returns a message saying as such
+// and deletes the game from CurrentGames; if not, it flips who the current player is and sends a response
+// to display the updated board.
 func handleMove(inputList []string, req RequestData) (*ResponseData, error) {
 	// Ensure correct number of arguments, ex. move A1
 	if len(inputList) != 2 {
@@ -94,7 +97,7 @@ func handleMove(inputList []string, req RequestData) (*ResponseData, error) {
 	game.Board[move] = game.CurrentPlayer.Mark
 	// Deal with end of game scenarios
 	if game.HasWinner() {
-		text := fmt.Sprintf("%s\n%s has won the game!\nGame over. (If the result displeases you, you could always play another game...)", game.Display(), req.username)
+		text := fmt.Sprintf("%s\n%s has won the game!\n Game over.", game.Display(), req.username)
 		response := ResponseData{
 			ResponseType: "in_channel",
 			Text:         text,
@@ -102,8 +105,8 @@ func handleMove(inputList []string, req RequestData) (*ResponseData, error) {
 		delete(CurrentGames, req.channel)
 		return &response, nil
 	}
-	if game.IsOver() {
-		text := fmt.Sprintf("%s\nYou've tied! Your skills are matched, apparently.\n (You could play another game to find out for sure...)", game.Display())
+	if game.HasTie() {
+		text := fmt.Sprintf("%s\nYou've tied! Your skills are matched, apparently.\n(You could play another game to find out for sure...)", game.Display())
 		response := ResponseData{
 			ResponseType: "in_channel",
 			Text:         text,
@@ -129,7 +132,7 @@ func handleMove(inputList []string, req RequestData) (*ResponseData, error) {
 // handleDisplay provides the functionality for any user in the channel to display the
 // current board and whose turn it is.
 func handleDisplay(inputList []string, req RequestData) (*ResponseData, error) {
-	// Ensure correct number of arguments (just display)
+	// Ensure correct number of arguments (should be just /ttt display)
 	if len(inputList) != 1 {
 		return nil, UsageError
 	}
@@ -159,7 +162,7 @@ func handleHelp() (*ResponseData, error) {
 // (i.e. the user is one of the two players) and then removes it from the global
 // list of games.
 func handleCancel(inputList []string, req RequestData) (*ResponseData, error) {
-	// Ensure correct number of arguments (just cancel)
+	// Ensure correct number of arguments (should be just /ttt cancel)
 	if len(inputList) != 1 {
 		return nil, UsageError
 	}

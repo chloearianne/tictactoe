@@ -27,7 +27,12 @@ X | ... | 0
 
 var winningBoards = []map[string]string{
 	map[string]string{A1: X, B1: empty, C1: O, A2: X, B2: empty, C2: O, A3: X, B3: empty, C3: empty},
+	map[string]string{A1: empty, B1: X, C1: O, A2: empty, B2: X, C2: empty, A3: empty, B3: X, C3: O},
+	map[string]string{A1: empty, B1: empty, C1: O, A2: empty, B2: empty, C2: O, A3: empty, B3: empty, C3: O},
+	map[string]string{A1: empty, B1: empty, C1: O, A2: X, B2: X, C2: X, A3: O, B3: empty, C3: empty},
+	map[string]string{A1: empty, B1: empty, C1: O, A2: empty, B2: empty, C2: O, A3: X, B3: X, C3: X},
 	map[string]string{A1: X, B1: X, C1: X, A2: O, B2: empty, C2: empty, A3: empty, B3: O, C3: empty},
+	map[string]string{A1: empty, B1: empty, C1: O, A2: empty, B2: O, C2: X, A3: O, B3: X, C3: empty},
 	map[string]string{A1: O, B1: empty, C1: X, A2: empty, B2: O, C2: empty, A3: X, B3: empty, C3: O},
 }
 
@@ -44,7 +49,7 @@ func TestGameWinner(t *testing.T) {
 func TestGameTied(t *testing.T) {
 	g := New(Player{Name: "batman", ID: "1", Mark: O}, Player{Name: "superman", ID: "2", Mark: X})
 	g.Board = map[string]string{A1: O, B1: X, C1: X, A2: O, B2: O, C2: X, A3: X, B3: O, C3: X}
-	if !g.IsOver() {
+	if !g.HasTie() {
 		t.Errorf("Game is tied, but wasn't detected")
 	}
 

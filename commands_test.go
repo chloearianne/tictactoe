@@ -10,12 +10,12 @@ import (
 )
 
 // Dummy variables used for testing
-var p1 = Player{Name: "clim", ID: "2", Mark: O}
+var p1 = Player{Name: "blueberry", ID: "muffin", Mark: O}
 var p2 = Player{Name: "omelette", ID: "bacon", Mark: X}
 var dummyBoard = map[string]string{A1: X, B1: empty, C1: O, A2: X, B2: empty, C2: O, A3: empty, B3: X, C3: empty}
 var dummyGame = Game{Board: dummyBoard, Player1: p1, Player2: p2, CurrentPlayer: p2}
-var dummyUsers = map[string]string{"clim": "2", "omelette": "bacon"}
-var dummyChannelUsers = map[string][]string{"fakeChan": []string{"2", "bacon"}}
+var dummyUsers = map[string]string{"blueberry": "muffin", "omelette": "bacon"}
+var dummyChannelUsers = map[string][]string{"fakeChan": []string{"muffin", "bacon"}}
 
 // Test represents one test (for any of the command functions).
 type Test struct {
@@ -27,9 +27,9 @@ type Test struct {
 	expectedResponse     string
 }
 
-// Run Test takes a list of Tests and a function to test them with and ensures that the response from running that
+// RunTest takes a list of Tests and a function to test them with and ensures that the response from running that
 // function matches what the Test specifies is expected. It starts up a server to mock out the GameHandler, sets up
-// any test environment variables (existingBoards, existingUsers, etc), and makes a dummy request, and then compares
+// any test environment variables (existingBoards, existingUsers, etc), makes a dummy request, and then compares
 // the response to expectedResponse.
 func RunTest(tests []Test, testFunc func([]string, RequestData) (*ResponseData, error), t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -53,8 +53,6 @@ func RunTest(tests []Test, testFunc func([]string, RequestData) (*ResponseData, 
 	for _, test := range tests {
 		if test.existingBoards != nil {
 			CurrentGames = test.existingBoards
-		} else {
-			CurrentGames = map[string]*Game{}
 		}
 		if test.existingUsers != nil {
 			Users = test.existingUsers
@@ -82,25 +80,26 @@ func RunTest(tests []Test, testFunc func([]string, RequestData) (*ResponseData, 
 				t.Errorf("Expected %s, but got %s when testing '%s'", test.expectedResponse, string(body), test.name)
 			}
 		}
+		cleanup()
 	}
-	cleanup()
 }
 
 // cleanup is used to reset all values that may have been changed during a test
 func cleanup() {
 	CurrentGames = map[string]*Game{}
 	Users = map[string]string{}
+	ChannelUsers = map[string][]string{}
 	dummyGame.Board = map[string]string{A1: X, B1: empty, C1: O, A2: X, B2: empty, C2: O, A3: empty, B3: X, C3: empty}
 	dummyGame.CurrentPlayer = p2
 }
 
 func TestStart(t *testing.T) {
-	var successResponse = `{"response_type":"in_channel","text":"\u003c@2|clim\u003e, omelette has challenged you to a game! Your move. \n      1    2    3\nA  ... | ... | ...\nB  ... | ... | ...\nC  ... | ... | ..."}`
+	var successResponse = `{"response_type":"in_channel","text":"Hey \u003c@muffin|blueberry\u003e, omelette has challenged you to a game! Your move. \n      1    2    3\nA  ... | ... | ...\nB  ... | ... | ...\nC  ... | ... | ..."}`
 
 	tests := []Test{
 		Test{
 			name:                 "basic",
-			input:                "start @clim",
+			input:                "start @blueberry",
 			existingUsers:        dummyUsers,
 			existingChannelUsers: dummyChannelUsers,
 			expectedResponse:     successResponse,
@@ -116,28 +115,29 @@ func TestStart(t *testing.T) {
 			expectedResponse: UserDoesntExistError.Error(),
 		},
 		Test{
-			name:             "user in diff channel",
-			input:            "start",
-			existingUsers:    dummyUsers,
-			expectedResponse: UsageError.Error(),
+			name:                 "user in diff channel",
+			input:                "start @blueberry",
+			existingUsers:        dummyUsers,
+			existingChannelUsers: map[string][]string{"fakeChan": []string{"bacon"}},
+			expectedResponse:     UserNotInChannelError.Error(),
 		},
 		Test{
 			name:                 "too many args",
-			input:                "start @clim @pancakes",
+			input:                "start @blueberry @pancakes",
 			existingUsers:        dummyUsers,
 			existingChannelUsers: dummyChannelUsers,
 			expectedResponse:     UsageError.Error(),
 		},
 		Test{
 			name:                 "bad username",
-			input:                "start clim",
+			input:                "start blueberry",
 			existingUsers:        dummyUsers,
 			existingChannelUsers: dummyChannelUsers,
 			expectedResponse:     UsageError.Error(),
 		},
 		Test{
 			name:                 "game already exists",
-			input:                "start @clim",
+			input:                "start @blueberry",
 			existingUsers:        dummyUsers,
 			existingChannelUsers: dummyChannelUsers,
 			existingBoards:       map[string]*Game{"fakeChan": &Game{}},
@@ -145,7 +145,7 @@ func TestStart(t *testing.T) {
 		},
 		Test{
 			name:                 "game exists in different channel",
-			input:                "start @clim",
+			input:                "start @blueberry",
 			existingUsers:        dummyUsers,
 			existingChannelUsers: dummyChannelUsers,
 			existingBoards:       map[string]*Game{"waffles": &Game{}},
@@ -155,37 +155,8 @@ func TestStart(t *testing.T) {
 	RunTest(tests, handleStart, t)
 }
 
-func TestDisplay(t *testing.T) {
-	var successResponse = `{"response_type":"in_channel","text":"clim (O) vs. omelette (X)\nX | X | ...\n... | ... | X\n0 | 0 | ...\nIt's omelette's turn to make a move."}`
-	tests := []Test{
-		Test{
-			name:          "display properly",
-			input:         "display",
-			existingUsers: dummyUsers,
-			existingBoards: map[string]*Game{
-				"fakeChan": &dummyGame,
-			},
-			expectedResponse: successResponse,
-		},
-		Test{
-			name:             "no game exists",
-			input:            "display",
-			existingUsers:    dummyUsers,
-			existingBoards:   map[string]*Game{"waffles": &Game{}},
-			expectedResponse: NoGameExistsError.Error(),
-		},
-		Test{
-			name:             "too many args",
-			input:            "display everything!",
-			existingBoards:   map[string]*Game{"fakeChan": &Game{}},
-			expectedResponse: UsageError.Error(),
-		},
-	}
-	RunTest(tests, handleDisplay, t)
-}
-
 func TestMove(t *testing.T) {
-	var successResponse = `{"response_type":"in_channel","text":"clim (O) vs. omelette (X)\nX | X | ...\nX | ... | X\n0 | 0 | ...\nIt's clim's turn to make a move."}`
+	var successResponse = `{"response_type":"in_channel","text":"blueberry (O) vs. omelette (X)\nX | X | ...\nX | ... | X\n0 | 0 | ...\nIt's blueberry's turn to make a move."}`
 	tests := []Test{
 		Test{
 			name:          "move properly",
@@ -204,9 +175,27 @@ func TestMove(t *testing.T) {
 			expectedResponse: NoGameExistsError.Error(),
 		},
 		Test{
+			name:          "invalid move",
+			input:         "move X1",
+			existingUsers: dummyUsers,
+			existingBoards: map[string]*Game{
+				"fakeChan": &dummyGame,
+			},
+			expectedResponse: InvalidMoveError.Error(),
+		},
+		Test{
+			name:          "position taken",
+			input:         "move A1",
+			existingUsers: dummyUsers,
+			existingBoards: map[string]*Game{
+				"fakeChan": &dummyGame,
+			},
+			expectedResponse: PositionTakenError.Error(),
+		},
+		Test{
 			name:             "not authorized",
 			input:            "move B1",
-			existingUsers:    map[string]string{"clim": "2"},
+			existingUsers:    map[string]string{"blueberry": "muffin"},
 			existingBoards:   map[string]*Game{"fakeChan": &Game{}},
 			expectedResponse: NotAuthorizedError.Error(),
 		},
@@ -245,22 +234,83 @@ func TestMultipleMoves(t *testing.T) {
 	req1 := RequestData{channel: "fakeChan", username: "omelette", userID: "bacon"}
 	_, err := handleMove([]string{"move", "C3"}, req1)
 	if err != nil {
-		t.Errorf("Failed to make valid move: %v", err)
+		t.Fatalf("Failed to make valid move: %v", err)
 	}
-	req2 := RequestData{channel: "fakeChan", username: "clim", userID: "2"}
+	req2 := RequestData{channel: "fakeChan", username: "blueberry", userID: "muffin"}
 	_, err = handleMove([]string{"move", "A3"}, req2)
 	if err != nil {
-		t.Errorf("Failed to make valid move: %v", err)
+		t.Fatalf("Failed to make valid move: %v", err)
 	}
 	_, err = handleMove([]string{"move", "B1"}, req1)
 	if err != nil {
-		t.Errorf("Failed to make valid move: %v", err)
+		t.Fatalf("Failed to make valid move: %v", err)
 	}
 	_, err = handleMove([]string{"move", "A3"}, req2)
 	if err == nil || err != PositionTakenError {
-		t.Errorf("Expected invalid move error, but got %v", err)
+		t.Fatalf("Expected invalid move error, but got %v", err)
 	}
 	cleanup()
+}
+
+func TestGameEndsWithWinningMove(t *testing.T) {
+	dummyGame.Board = map[string]string{A1: empty, B1: empty, C1: O, A2: X, B2: empty, C2: O, A3: X, B3: empty, C3: empty}
+	CurrentGames["fakeChan"] = &dummyGame
+	req1 := RequestData{channel: "fakeChan", username: "omelette", userID: "bacon"}
+	_, err := handleMove([]string{"move", "A1"}, req1)
+	if err != nil {
+		t.Fatalf("Failed to make valid move: %v", err)
+	}
+	req2 := RequestData{channel: "fakeChan", username: "blueberry", userID: "muffin"}
+	_, err = handleMove([]string{"move", "B1"}, req2)
+	if err == nil || err != NoGameExistsError {
+		t.Errorf("Game did not end when it should have")
+	}
+	cleanup()
+}
+
+func TestGameEndsWithTyingMove(t *testing.T) {
+	dummyGame.Board = map[string]string{A1: empty, B1: X, C1: O, A2: X, B2: O, C2: O, A3: X, B3: O, C3: X}
+	CurrentGames["fakeChan"] = &dummyGame
+	req1 := RequestData{channel: "fakeChan", username: "omelette", userID: "bacon"}
+	_, err := handleMove([]string{"move", "A1"}, req1)
+	if err != nil {
+		t.Fatalf("Failed to make valid move: %v", err)
+	}
+	req2 := RequestData{channel: "fakeChan", username: "blueberry", userID: "muffin"}
+	_, err = handleMove([]string{"move", "B1"}, req2)
+	if err == nil || err != NoGameExistsError {
+		t.Errorf("Game did not end when it should have")
+	}
+	cleanup()
+}
+
+func TestDisplay(t *testing.T) {
+	var successResponse = `{"response_type":"in_channel","text":"blueberry (O) vs. omelette (X)\nX | X | ...\n... | ... | X\n0 | 0 | ...\nIt's omelette's turn to make a move."}`
+	tests := []Test{
+		Test{
+			name:          "display properly",
+			input:         "display",
+			existingUsers: dummyUsers,
+			existingBoards: map[string]*Game{
+				"fakeChan": &dummyGame,
+			},
+			expectedResponse: successResponse,
+		},
+		Test{
+			name:             "no game exists",
+			input:            "display",
+			existingUsers:    dummyUsers,
+			existingBoards:   map[string]*Game{"waffles": &Game{}},
+			expectedResponse: NoGameExistsError.Error(),
+		},
+		Test{
+			name:             "too many args",
+			input:            "display everything!",
+			existingBoards:   map[string]*Game{"fakeChan": &Game{}},
+			expectedResponse: UsageError.Error(),
+		},
+	}
+	RunTest(tests, handleDisplay, t)
 }
 
 func TestCancel(t *testing.T) {

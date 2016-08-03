@@ -3,10 +3,20 @@
 A Slack custom integration for playing a game of tic tac toe within a channel.
 
 ## Usage
-- `/ttt start [@user]` challenges @user to a game.
-- `/ttt display` displays the current status of the board and whose turn it currently is.
-- `/ttt move [space on board]` is used to make a move, marking the corresponding space with an X or an O depending on the user.
+- `/ttt start [@user]` challenges @user to a game. Anyone can run this command.
+- `/ttt display` displays the current status of the board and whose turn it currently is. Anyone can run this command.
+- `/ttt move [space on board]` is used to make a move, marking the corresponding space with an X or an O depending on the user. Only the current user can run this command.
+- `/ttt cancel` is used to cancel a game. Only the players of the game can run this command.
+- `/ttt help` displays information about how to play the game. Anyone can run this command.
 
 ## Gameplay details
-The board is represented in a grid fashion, with rows labeled A, B, and C, and columns labeled 1, 2, and 3. For example, to mark the bottom row, center spot on your turn, you would use the command `/ttt move C2`. 
+Positions on the board are represented by two characters: the first, a letter indicating the row (A, B, or C), and the second, a number indicating the column (1, 2, or 3). For example "/ttt move C2" would result in this mark:
+
+      1    2    3
+A  ... | ... | ...
+B  ... | ... | ...
+C  ... | X | ...
+
+For rules of tic tac toe, see https://en.wikipedia.org/wiki/Tic-tac-toe.
+
 Only one game is allowed be active per channel.
