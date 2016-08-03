@@ -114,6 +114,7 @@ func handleMove(inputList []string, req RequestData) (*ResponseData, error) {
 		delete(CurrentGames, req.channel)
 		return &response, nil
 	}
+	text := fmt.Sprintf("%s played spot %s.", game.CurrentPlayer.Name, move)
 	// Switch who the current player is
 	if game.CurrentPlayer == game.Player1 {
 		game.CurrentPlayer = game.Player2
@@ -124,7 +125,7 @@ func handleMove(inputList []string, req RequestData) (*ResponseData, error) {
 
 	response := ResponseData{
 		ResponseType: "in_channel",
-		Text:         fmt.Sprintf("%s\nIt's %s's turn to make a move.", game.Display(), game.CurrentPlayer.Name),
+		Text:         fmt.Sprintf("%s\n%s\nIt's %s's turn to make a move.", game.Display(), text, game.CurrentPlayer.Name),
 	}
 	return &response, nil
 }

@@ -156,7 +156,7 @@ func TestStart(t *testing.T) {
 }
 
 func TestMove(t *testing.T) {
-	var successResponse = `{"response_type":"in_channel","text":"\nX | X | ...\nX | ... | X\n0 | 0 | ...\nIt's blueberry's turn to make a move."}`
+	var successResponse = `{"response_type":"in_channel","text":"\nX | X | ...\nX | ... | X\n0 | 0 | ...\nomelette played spot B1.\nIt's blueberry's turn to make a move."}`
 	tests := []Test{
 		Test{
 			name:          "move properly",
